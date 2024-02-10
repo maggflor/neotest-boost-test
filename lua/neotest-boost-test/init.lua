@@ -1,4 +1,7 @@
 local lib = require("neotest.lib")
+local parsing = require("neotest-boost-test.parsing")
+local constructing = require("neotest-boost-test.constructing")
+local collecting = require("neotest-boost-test.collecting")
 
 ---@type neotest.Adapter
 ---@class NeotestAdapter
@@ -21,25 +24,7 @@ end
 --- @param file_path string the path to analyze
 --- @return boolean true if `path` is a test file, false otherwise.
 function NeotestAdapter.is_test_file(file_path)
-	local path_elements = vim.split(file_path, lib.files.sep, { plain = true })
-	local filename = path_elements[#path_elements]
-	if filename == "" then -- directory
-		return false
-	end
-
-	local valid_extensions = {
-		["cpp"] = true,
-		["cppm"] = true,
-		["cc"] = true,
-		["cxx"] = true,
-		["c++"] = true,
-	}
-	local filename_elements = vim.split(filename, ".", { plain = true })
-	local extension = filename_elements[#filename_elements]
-	if not valid_extensions[extension] then
-		return false
-	end
-	return true
+	return parsing.is_test_file(file_path)
 end
 
 ---Filter directories when searching for test files
@@ -50,10 +35,7 @@ end
 ---@return boolean
 ---@diagnostic disable-next-line: unused-local
 function NeotestAdapter.filter_dir(name, rel_path, root)
-	if string.find(rel_path, "test") or string.find(rel_path, "Test") then
-		return true
-	end
-	return false
+	return parsing.filter_dir(rel_path)
 end
 
 ---Given a file path, parse all the tests within it.
@@ -61,27 +43,13 @@ end
 ---@param file_path string Absolute file path
 ---@return neotest.Tree | nil
 function NeotestAdapter.discover_positions(file_path)
-	local query = [[
-		;; TODO: test suites
-		;; test cases
-		(function_definition
-			declarator: (function_declarator
-				;; TODO: Match also fixture test cases
-				;; TODO: Match also data test cases
-				declarator: (identifier) @function_name (#eq? @function_name "BOOST_AUTO_TEST_CASE")
-				parameters: (parameter_list
-					(parameter_declaration
-						type: (type_identifier) @test.name)))
-		) @test.definition
-	]]
-
-	return lib.treesitter.parse_positions(file_path, query)
+	return parsing.discover_positions(file_path)
 end
 
 ---@param args neotest.RunArgs
 ---@return nil | neotest.RunSpec | neotest.RunSpec[]
 function NeotestAdapter.build_spec(args)
-	-- TODO: Implement
+	return constructing.build_spec(args)
 end
 
 ---@async
@@ -90,8 +58,7 @@ end
 ---@param tree neotest.Tree
 ---@return table<string, neotest.Result>
 function NeotestAdapter.results(spec, result, tree)
-	-- TODO: Implement
-	return {}
+	return collecting.results(spec, result, tree)
 end
 
 return NeotestAdapter

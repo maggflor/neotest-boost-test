@@ -1,3 +1,4 @@
+local async = require("neotest.async")
 local process = require("neotest.lib.process")
 
 local M = {}
@@ -34,8 +35,26 @@ local function ctest_search_executables(dir)
 	return {}
 end
 
+-- TODO: Consider to extract digraph parsing to file
+
 ---@param executable string absolute path of boost test executable
 ---@return string digraph
+---Example digraph
+---digraph G {rankdir=LR;
+---tu1[shape=ellipse,peripheries=2,fontname=Helvetica,color=green,label="Master Test Suite"];
+---{
+---tu65536[shape=Mrecord,fontname=Helvetica,color=green,label="test3|/home/user/Dokumente/workspace/boost_test_example/unit_test.cpp(4)"];
+---tu1 -> tu65536;
+---tu2[shape=Mrecord,fontname=Helvetica,color=green,label="TestSuite|/home/user/Dokumente/workspace/boost_test_example/unit_test.cpp(13)"];
+---tu1 -> tu2;
+---{
+---tu65537[shape=Mrecord,fontname=Helvetica,color=green,label="test1|/home/user/Dokumente/workspace/boost_test_example/unit_test.cpp(19)"];
+---tu2 -> tu65537;
+---tu65538[shape=Mrecord,fontname=Helvetica,color=green,label="test2|/home/user/Dokumente/workspace/boost_test_example/unit_test.cpp(28)"];
+---tu2 -> tu65538;
+---}
+---}
+---}
 local function boost_test_get_digraph(executable)
 	local result, data = process.run({
 		"bash",
@@ -68,22 +87,6 @@ end
 ---@param test_node neotest.Node test to search for
 ---@param executable string absolute path to test executable
 ---@return string filter to run only this test (i.e. inclusive surrounding test suites)
----Example digraph
----digraph G {rankdir=LR;
----tu1[shape=ellipse,peripheries=2,fontname=Helvetica,color=green,label="Master Test Suite"];
----{
----tu65536[shape=Mrecord,fontname=Helvetica,color=green,label="test3|/home/user/Dokumente/workspace/boost_test_example/unit_test.cpp(4)"];
----tu1 -> tu65536;
----tu2[shape=Mrecord,fontname=Helvetica,color=green,label="TestSuite|/home/user/Dokumente/workspace/boost_test_example/unit_test.cpp(13)"];
----tu1 -> tu2;
----{
----tu65537[shape=Mrecord,fontname=Helvetica,color=green,label="test1|/home/user/Dokumente/workspace/boost_test_example/unit_test.cpp(19)"];
----tu2 -> tu65537;
----tu65538[shape=Mrecord,fontname=Helvetica,color=green,label="test2|/home/user/Dokumente/workspace/boost_test_example/unit_test.cpp(28)"];
----tu2 -> tu65538;
----}
----}
----}
 local function boost_test_get_filter(test_node, executable)
 	local digraph = boost_test_get_digraph(executable)
 
@@ -113,24 +116,28 @@ end
 ---@param args neotest.RunArgs
 ---@return nil | neotest.RunSpec | neotest.RunSpec[]
 function M.build_spec(args)
-	if #args.tree:children() > 0 then
-		local results = {}
-		for i, child in ipairs(args.tree:children()) do
-			results[i] = M.build_spec({
-				tree = child,
-				strategy = args.strategy,
-				extra_args = args.extra_args,
-			})
-		end
-		return results
+	if args.strategy ~= "integrated" then
+		vim.notify("'" .. args.strategy .. "' not supported, yet.", "error")
+		return
 	end
+	-- TODO: Support file test
+	-- if #args.tree:children() > 0 then
+	-- 	local results = {}
+	-- 	for i, child in ipairs(args.tree:children()) do
+	-- 		results[i] = M.build_spec({
+	-- 			tree = child,
+	-- 			strategy = args.strategy,
+	-- 			extra_args = args.extra_args,
+	-- 		})
+	-- 	end
+	-- 	return results
+	-- end
 
 	---@type neotest.Node
 	local test_node = args.tree:to_list()[1]
 	-- vim.notify("Running test " .. vim.inspect(test_node))
 	if test_node.type ~= "test" then
 		-- TODO: Support test suites
-		vim.notify("'" .. test_node.type .. "' tests are not supported, yet.", "error")
 		return
 	end
 
@@ -150,9 +157,18 @@ function M.build_spec(args)
 	-- TODO: Warn if executable is older than test file
 
 	local test_filter = boost_test_get_filter(test_node, executable)
+	local log_path = async.fn.tempname()
+	local report_path = async.fn.tempname()
 	local command = vim.tbl_flatten({
 		executable,
 		"--run_test=" .. test_filter,
+		"--log_format=XML",
+		"--log_level=all",
+		"--log_sink=" .. log_path,
+		"--report_format=HRF",
+		-- TODO: Make report level configurable
+		"--report_level=detailed",
+		"--report_sink=" .. report_path,
 		args.extra_args,
 	})
 
@@ -161,8 +177,15 @@ function M.build_spec(args)
 		-- No env needed
 		env = nil,
 		cwd = build_dir,
-		-- We don't need any context preserved for now
-		context = nil,
+		---@type TestContext
+		context = {
+			test_id = test_node.id,
+			file = test_node.path,
+			line = test_node.range[1] + 1,
+			filter = test_filter,
+			log_path = log_path,
+			report_path = report_path,
+		},
 		-- No dap strategy for now
 		strategy = nil,
 	}

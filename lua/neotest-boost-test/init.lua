@@ -1,4 +1,3 @@
-local lib = require("neotest.lib")
 local parsing = require("neotest-boost-test.parsing")
 local constructing = require("neotest-boost-test.constructing")
 local collecting = require("neotest-boost-test.collecting")

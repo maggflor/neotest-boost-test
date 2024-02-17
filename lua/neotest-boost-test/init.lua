@@ -12,7 +12,6 @@ local NeotestAdapter = { name = "neotest-boost-test" }
 ---@async
 ---@param dir string @Directory to treat as cwd
 ---@return string | nil @Absolute root dir of test suite
----@diagnostic disable-next-line: unused-local
 function NeotestAdapter.root(dir)
 	-- We do not need the root dir ATM
 	return nil
@@ -20,8 +19,8 @@ end
 
 --- Analyzes the path to determine whether the file is a C++ test file or not.
 ---@async
---- @param file_path string the path to analyze
---- @return boolean true if `path` is a test file, false otherwise.
+---@param file_path string the path to analyze
+---@return boolean true if `path` is a test file, false otherwise.
 function NeotestAdapter.is_test_file(file_path)
 	return parsing.is_test_file(file_path)
 end
@@ -32,9 +31,8 @@ end
 ---@param rel_path string Path to directory, relative to root
 ---@param root string Root directory of project
 ---@return boolean
----@diagnostic disable-next-line: unused-local
 function NeotestAdapter.filter_dir(name, rel_path, root)
-	return parsing.filter_dir(rel_path)
+	return parsing.filter_dir(rel_path, root)
 end
 
 ---Given a file path, parse all the tests within it.

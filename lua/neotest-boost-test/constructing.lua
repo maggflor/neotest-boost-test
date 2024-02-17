@@ -1,5 +1,6 @@
 local async = require("neotest.async")
 local process = require("neotest.lib.process")
+local utils = require("neotest-boost-test.utils")
 
 local M = {}
 
@@ -22,17 +23,14 @@ local function ctest_search_executables(dir)
 		return {}
 	end
 
-	local lines = vim.split(data.stdout, "\n", { plain = true })
+	local executables = {}
 	for _, line in pairs(lines) do
-		local words = vim.split(line, " ", { plain = true })
-		for _, word in pairs(words) do
-			if word == "command:" then
-				-- TODO: More than one test executable
-				return { words[#words] }
-			end
+		local executable = utils.find_word_after(line, "command:")
+		if executable ~= nil and string.find(executable, dir) then
+			table.insert(executables, executable)
 		end
 	end
-	return {}
+	return executables
 end
 
 -- TODO: Consider to extract digraph parsing to file
@@ -68,11 +66,28 @@ local function boost_test_get_digraph(executable)
 	return data.stderr
 end
 
+---@param base_build_dir string
+---@param test_file string absolute path to test file
+---@return string specific build dir for test file
+local function find_build_dir(base_build_dir, test_file)
+	local file_path = utils.remove_file_name_from_path(test_file)
+
+	-- Remove leading cwd
+	local cwd = vim.fn.getcwd()
+	if string.find(file_path, cwd) then
+		file_path = file_path:sub(#cwd + 1)
+	end
+
+	return utils.concat_paths(base_build_dir, file_path)
+end
+
 ---@param test_node neotest.Node test to search for
 ---@param build_dir string the directory to search in
----@return string absolute path to test executable
+---@return string | nil absolute path to test executable
 local function find_test_executable(test_node, build_dir)
-	for _, test_executable in pairs(ctest_search_executables(build_dir)) do
+	local test_dir = find_build_dir(build_dir, test_node.path)
+	local executables = ctest_search_executables(test_dir)
+	for _, test_executable in pairs(executables) do
 		local digraph = boost_test_get_digraph(test_executable)
 		-- Convert from 0 based to 1 based
 		local test_start_line = test_node.range[1] + 1
@@ -81,7 +96,7 @@ local function find_test_executable(test_node, build_dir)
 			return test_executable
 		end
 	end
-	return ""
+	return nil
 end
 
 ---@param test_node neotest.Node test to search for
@@ -144,7 +159,7 @@ function M.build_spec(args)
 	-- TODO: Make build dir configurable
 	local build_dir = "build/"
 	local executable = find_test_executable(test_node, build_dir)
-	if executable == "" then
+	if not executable then
 		vim.notify(
 			"Test executable not found.\n"
 				.. "The test may not be built or the build directory '"
@@ -171,6 +186,7 @@ function M.build_spec(args)
 		"--report_sink=" .. report_path,
 		args.extra_args,
 	})
+	-- vim.notify("Running command:\n" .. vim.inspect(command))
 
 	return {
 		command = command,

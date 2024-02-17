@@ -92,6 +92,10 @@ local M = {}
 local function flatten_to_test_cases(test_log)
 	---@type TestCaseResult[]
 	local test_cases = {}
+	if not test_log then
+		return test_cases
+	end
+
 	if test_log.TestSuite then
 		for _, test_case in pairs(flatten_to_test_cases(test_log.TestSuite)) do
 			table.insert(test_cases, test_case)
@@ -116,7 +120,7 @@ end
 local function read_test_result(log_path, test_file, test_line)
 	local success, data = pcall(lib.files.read, log_path)
 	if not success then
-		vim.notify("Failed to file " .. log_path, "error")
+		vim.notify("Failed to read file " .. log_path, "error")
 		return
 	end
 	---@type TestOutput

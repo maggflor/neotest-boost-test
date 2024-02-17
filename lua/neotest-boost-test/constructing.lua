@@ -1,6 +1,7 @@
 local async = require("neotest.async")
-local process = require("neotest.lib.process")
 local utils = require("neotest-boost-test.utils")
+
+local Job = require("plenary.job")
 
 local M = {}
 
@@ -14,12 +15,16 @@ local M = {}
 ---@param dir string relative directory to search in
 ---@return string[] absolute paths of test executables
 local function ctest_search_executables(dir)
-	local result, data = process.run({
-		"bash",
-		"-c",
-		"cd " .. dir .. " && " .. "ctest -V -N",
-	}, { stdout = true, stderr = false })
-	if result ~= 0 then
+	local lines, result_code = Job:new({
+		command = "bash",
+		args = {
+			"-c",
+			"cd " .. dir .. " && " .. "ctest -V -N",
+		},
+		enable_recording = true,
+	}):sync()
+
+	if result_code ~= 0 or not lines[1] then
 		return {}
 	end
 
@@ -54,16 +59,20 @@ end
 ---}
 ---}
 local function boost_test_get_digraph(executable)
-	local result, data = process.run({
-		"bash",
-		"-c",
-		executable .. " --list_content=DOT",
-	}, { stdout = false, stderr = true })
-	if result ~= 0 then
+	local lines, result_code = Job:new({
+		command = "bash",
+		args = {
+			"-c",
+			executable .. " --list_content=DOT" .. " 2>&1",
+		},
+		enable_recording = true,
+	}):sync()
+
+	if result_code ~= 0 or not lines[1] then
 		return ""
 	end
 
-	return data.stderr
+	return table.concat(lines, "\n")
 end
 
 ---@param base_build_dir string

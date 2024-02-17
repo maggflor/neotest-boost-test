@@ -1,11 +1,12 @@
 local lib = require("neotest.lib")
+local utils = require("neotest-boost-test.utils")
 
 local M = {}
 
 --- Analyzes the path to determine whether the file is a C++ test file or not.
 ---@async
---- @param file_path string the path to analyze
---- @return boolean true if `path` is a test file, false otherwise.
+---@param file_path string the path to analyze
+---@return boolean true if `path` is a test file, false otherwise.
 function M.is_test_file(file_path)
 	local path_elements = vim.split(file_path, lib.files.sep, { plain = true })
 	local filename = path_elements[#path_elements]
@@ -31,13 +32,29 @@ end
 ---Filter directories when searching for test files
 ---@async
 ---@param rel_path string Path to directory, relative to root
+---@param root string Root directory of project
 ---@return boolean
----@diagnostic disable-next-line: unused-local
-function M.filter_dir(rel_path)
+function M.filter_dir(rel_path, root)
+	-- TODO: Make feature optional
+	if M.current_file ~= nil then
+		local absolute_path = utils.concat_paths(root, rel_path)
+		local is_part_of_current_path = string.find(M.current_file, absolute_path)
+		if not is_part_of_current_path then
+			return false
+		end
+	end
 	if string.find(rel_path, "test") or string.find(rel_path, "Test") then
 		return true
 	end
-	return false
+	if
+		string.find(rel_path, "/lib")
+		or string.find(rel_path, "/src")
+		or string.find(rel_path, "/doc")
+		or string.find(rel_path, "/include")
+	then
+		return false
+	end
+	return true
 end
 
 ---Given a file path, parse all the tests within it.

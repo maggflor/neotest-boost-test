@@ -1,5 +1,7 @@
 local lib = require("neotest.lib")
 
+local Job = require("plenary.job")
+
 local M = {}
 
 ---@param line string a line of text that can be split into words
@@ -34,6 +36,25 @@ function M.concat_paths(left_path, right_path)
 		right_path = right_path:sub(2)
 	end
 	return left_path .. lib.files.sep .. right_path
+end
+
+---@return string | nil build dir read from compile_commands.json or nil
+function M.build_root_from_compile_commands()
+	local lines, result_code = Job:new({
+		command = "/bin/sh",
+		args = {
+			"-c",
+			"grep directory ./compile_commands.json -m 1",
+		},
+		enable_recording = true,
+	}):sync()
+
+	if result_code ~= 0 or not lines[1] then
+		return
+	end
+
+	local build_dir = lines[1]:match('"directory": "(.*)"')
+	return build_dir
 end
 
 return M

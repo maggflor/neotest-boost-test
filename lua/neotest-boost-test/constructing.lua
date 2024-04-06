@@ -16,10 +16,10 @@ local M = {}
 ---@return string[] absolute paths of test executables
 local function ctest_search_executables(dir)
 	local lines, result_code = Job:new({
-		command = "bash",
+		command = "/bin/sh",
 		args = {
 			"-c",
-			"cd " .. dir .. " && " .. "ctest -V -N",
+			string.format("cd %q && ctest -V -N", dir),
 		},
 		enable_recording = true,
 	}):sync()
@@ -60,10 +60,10 @@ end
 ---}
 local function boost_test_get_digraph(executable)
 	local lines, result_code = Job:new({
-		command = "bash",
+		command = "/bin/sh",
 		args = {
 			"-c",
-			executable .. " --list_content=DOT" .. " 2>&1",
+			string.format("%q --list_content=DOT 2>&1", executable),
 		},
 		enable_recording = true,
 	}):sync()
@@ -166,7 +166,7 @@ function M.build_spec(args)
 	end
 
 	-- TODO: Make build dir configurable
-	local build_dir = "build/"
+	local build_dir = utils.build_root_from_compile_commands() or "build/"
 	local executable = find_test_executable(test_node, build_dir)
 	if not executable then
 		vim.notify(

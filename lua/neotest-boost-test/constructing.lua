@@ -178,27 +178,31 @@ function M.build_spec(args)
 		)
 		return
 	end
+	local executable_path = utils.remove_file_name_from_path(executable)
+
 	-- TODO: Warn if executable is older than test file
 
 	local test_filter = boost_test_get_filter(test_node, executable)
 	local log_path = async.fn.tempname()
 	local report_path = async.fn.tempname()
 	local command = vim.tbl_flatten({
-		executable,
-		"--run_test=" .. test_filter,
+		-- TODO: Make configurable whether to switch dir
+		string.format("cd %q", executable_path),
+		"&&",
+		string.format("%q", executable),
+		"--run_test=" .. string.format("%q", test_filter),
 		"--log_format=XML",
 		"--log_level=all",
-		"--log_sink=" .. log_path,
+		"--log_sink=" .. string.format("%q", log_path),
 		"--report_format=HRF",
 		-- TODO: Make report level configurable
 		"--report_level=detailed",
-		"--report_sink=" .. report_path,
+		"--report_sink=" .. string.format("%q", report_path),
 		args.extra_args,
 	})
-	-- vim.notify("Running command:\n" .. vim.inspect(command))
 
 	return {
-		command = command,
+		command = { "/bin/sh", "-c", table.concat(command, " ") },
 		-- No env needed
 		env = nil,
 		cwd = build_dir,

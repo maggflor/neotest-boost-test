@@ -2,6 +2,7 @@ local lib = require("neotest.lib")
 local ResultStatus = require("neotest.types").ResultStatus
 
 local M = {}
+local internals = {}
 
 ---@class TestContext
 ---@field test_id string
@@ -47,49 +48,7 @@ local M = {}
 
 ---@param test_log TestLog | TestSuiteResult
 ---@return TestCaseResult[] test cases
----Example TestLog
----{
----TestSuite = {
----  TestCase = {
----	_attr = {
----	  name = "test3",
----	  reason = "disabled",
----	  skipped = "yes"
----	}
----  },
----  TestSuite = {
----	TestCase = { {
----		_attr = {
----		  name = "test1",
----		  reason = "disabled",
----		  skipped = "yes"
----		}
----	  }, {
----		Info = { "check i == 0 has passed",
----		  _attr = {
----			file = "/home/florianm/Dokumente/workspace/boost_test_example/unit_test.cpp",
----			line = "34"
----		  }
----		},
----		TestingTime = "23",
----		_attr = {
----		  file = "/home/florianm/Dokumente/workspace/boost_test_example/unit_test.cpp",
----		  line = "28",
----		  name = "test2"
----		}
----	  } },
----	_attr = {
----	  file = "/home/florianm/Dokumente/workspace/boost_test_example/unit_test.cpp",
----	  line = "13",
----	  name = "TestSuite"
----	}
----  },
----  _attr = {
----	name = "Master Test Suite"
----  }
----}
----}
-local function flatten_to_test_cases(test_log)
+function internals.flatten_to_test_cases(test_log)
 	---@type TestCaseResult[]
 	local test_cases = {}
 	if not test_log then
@@ -97,8 +56,16 @@ local function flatten_to_test_cases(test_log)
 	end
 
 	if test_log.TestSuite then
-		for _, test_case in pairs(flatten_to_test_cases(test_log.TestSuite)) do
-			table.insert(test_cases, test_case)
+		if test_log.TestSuite._attr or test_log.TestSuite.TestCase then
+			for _, test_case in pairs(internals.flatten_to_test_cases(test_log.TestSuite)) do
+				table.insert(test_cases, test_case)
+			end
+		else
+			for _, test_suite in pairs(test_log.TestSuite) do
+				for _, test_case in pairs(internals.flatten_to_test_cases(test_suite)) do
+					table.insert(test_cases, test_case)
+				end
+			end
 		end
 	end
 	if test_log.TestCase then
@@ -129,13 +96,11 @@ local function read_test_result(log_path, test_file, test_line)
 		vim.notify("Test results not in XML format " .. log_path, "error")
 		return
 	end
-	-- vim.notify(vim.inspect(test_output.TestLog))
-	local test_cases = flatten_to_test_cases(test_output.TestLog)
+	local test_cases = internals.flatten_to_test_cases(test_output.TestLog)
 	if #test_cases == 0 then
 		vim.notify("No test case results found in test output " .. log_path, "error")
 		return
 	end
-	-- vim.notify(vim.inspect(test_cases))
 
 	---@param test_case TestCaseResult
 	local function find_test_case(test_case)
@@ -166,7 +131,6 @@ function M.results(spec, result, tree)
 	local context = spec.context
 
 	local test_result = read_test_result(context.log_path, context.file, context.line)
-	-- vim.notify(vim.inspect(test_case))
 	if not test_result then
 		vim.notify("Failed to read test results from " .. context.log_path, "error")
 		return {}
@@ -205,4 +169,5 @@ function M.results(spec, result, tree)
 	return results
 end
 
+M.internals = internals
 return M

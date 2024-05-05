@@ -4,12 +4,13 @@ local utils = require("neotest-boost-test.utils")
 local Job = require("plenary.job")
 
 local M = {}
+local internals = {}
 
 ---@class neotest.Node
 ---@field id string
 ---@field name string
 ---@field path string
----@field range integer[4]
+---@field range integer[] 0 based { start_line, start_col, end_line, end_col }
 ---@field type string
 
 ---@param dir string relative directory to search in
@@ -98,13 +99,29 @@ local function find_test_executable(test_node, build_dir)
 	local executables = ctest_search_executables(test_dir)
 	for _, test_executable in pairs(executables) do
 		local digraph = boost_test_get_digraph(test_executable)
-		local test_start_line = test_node.range[1]
-		local search_str = test_node.path .. "(" .. test_start_line .. ")"
+		local search_str = test_node.path .. "("
 		if string.find(digraph, search_str, 0, true) then
 			return test_executable
 		end
 	end
 	return nil
+end
+
+---@param line string string to search in
+---@param path string file path of test
+---@param range integer[] | nil 0 based { start_line, start_col, end_line, end_col }
+---@return boolean found
+function internals.contains_test_range(line, path, range)
+	local number_capture = "(%d+)"
+	local search_str = path .. "%(" .. number_capture .. "%)"
+	-- NOTE: Only searches for first match
+	local _, _, capture = string.find(line, search_str)
+	if not capture then
+		return false
+	end
+	local line_number = tonumber(capture)
+	---@diagnostic disable-next-line: need-check-nil
+	return not range or range[1] <= line_number and line_number <= range[3]
 end
 
 ---@param test_node neotest.Node test to search for
@@ -113,13 +130,10 @@ end
 local function boost_test_get_filter(test_node, executable)
 	local digraph = boost_test_get_digraph(executable)
 
-	local test_start_line = test_node.range[1]
-	local test_location_str = test_node.path .. "(" .. test_start_line .. ")"
-
 	local scope = {}
 	local lines = vim.split(digraph, "\n", { plain = true })
 	for i, line in ipairs(lines) do
-		if string.find(line, test_location_str, 0, true) then
+		if internals.contains_test_range(line, test_node.path, test_node.range) then
 			return table.concat(scope) .. test_node.name
 		end
 
@@ -131,6 +145,8 @@ local function boost_test_get_filter(test_node, executable)
 		end
 	end
 
+	-- vim.notify(vim.inspect(test_node.range))
+	-- vim.notify(vim.inspect(lines))
 	vim.notify("Could not determine scope of test '" .. test_node.name .. "' in test file.", "error")
 	return ""
 end
@@ -207,7 +223,7 @@ function M.build_spec(args)
 		context = {
 			test_id = test_node.id,
 			file = test_node.path,
-			line = test_node.range[1],
+			range = test_node.range,
 			filter = test_filter,
 			log_path = log_path,
 			report_path = report_path,
@@ -217,4 +233,5 @@ function M.build_spec(args)
 	}
 end
 
+M.internals = internals
 return M

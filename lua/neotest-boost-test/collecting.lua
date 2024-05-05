@@ -7,7 +7,7 @@ local internals = {}
 ---@class TestContext
 ---@field test_id string
 ---@field file string
----@field line integer 0 based test body start line
+---@field range integer[] 0 based { start_line, start_col, end_line, end_col }
 ---@field filter string
 ---@field log_path string
 ---@field report_path string
@@ -82,9 +82,9 @@ end
 
 ---@param log_path string
 ---@param test_file string
----@param test_line integer
+---@param test_range integer[] 0 based { start_line, start_col, end_line, end_col }
 ---@return TestCaseResult | nil
-local function read_test_result(log_path, test_file, test_line)
+local function read_test_result(log_path, test_file, test_range)
 	local success, data = pcall(lib.files.read, log_path)
 	if not success then
 		vim.notify("Failed to read file " .. log_path, "error")
@@ -110,7 +110,8 @@ local function read_test_result(log_path, test_file, test_line)
 		if test_case._attr.file ~= test_file then
 			return false
 		end
-		if test_case._attr.line ~= tostring(test_line) then
+		local test_line = tonumber(test_case._attr.line)
+		if test_line < test_range[1] or test_line > test_range[3] then
 			return false
 		end
 		return true
@@ -133,7 +134,7 @@ function M.results(spec, result, tree)
 	---@type TestContext
 	local context = spec.context
 
-	local test_result = read_test_result(context.log_path, context.file, context.line)
+	local test_result = read_test_result(context.log_path, context.file, context.range)
 	if not test_result then
 		vim.notify("Failed to read test results from " .. context.log_path, "error")
 		return {}

@@ -82,8 +82,8 @@ function M.discover_positions(file_path)
 				)
 			)
 			.
-			body: (compound_statement) @test.definition
-		)
+			body: (compound_statement)
+		) @test.definition
 
 		;; BOOST_DATA_TEST_CASE_F
 		(

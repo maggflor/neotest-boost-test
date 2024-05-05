@@ -63,20 +63,85 @@ end
 ---@return neotest.Tree | nil
 function M.discover_positions(file_path)
 	local query = [[
-        ;; TODO: test suites
-        ;; test cases
-        (function_definition
-            declarator: (function_declarator
-                ;; TODO: Match also fixture test cases
-                ;; TODO: Match also data test cases
-                declarator: (identifier) @function_name (#eq? @function_name "BOOST_AUTO_TEST_CASE")
-                parameters: (parameter_list
-                    (parameter_declaration
-                        type: (type_identifier) @test.name)))
-        ) @test.definition
-    ]]
+		;; TODO: test suites
+		;;(expression_statement
+		;;	(call_expression
+		;;		function: (identifier) @suite_name (#eq? @suite_name "BOOST_FIXTURE_TEST_SUITE")
+		;;		arguments: (argument_list
+		;;			(identifier) @namespace.name))
+		;;) @namespace.definition
 
+		;; auto, fixture and data test cases
+		(function_definition
+			declarator: (function_declarator
+				declarator: (identifier) @function_name (#match? @function_name "BOOST_[A-Z]+_TEST_CASE")
+				parameters: (parameter_list
+					(parameter_declaration
+						type: (type_identifier) @test.name
+					)
+				)
+			)
+			.
+			body: (compound_statement) @test.definition
+		)
+
+		;; BOOST_DATA_TEST_CASE_F
+		(
+			(expression_statement
+				(call_expression
+					function: (identifier) @function_name (#eq? @function_name "BOOST_DATA_TEST_CASE_F")
+					arguments: (argument_list
+						(identifier)
+						.
+						(identifier) @test.name
+					)
+				)
+			)
+			.
+			(compound_statement) @test.definition
+		)
+	]]
+
+	---@diagnostic disable-next-line: missing-parameter
 	return lib.treesitter.parse_positions(file_path, query)
 end
+
+---@diagnostic disable-next-line: unused-function, unused-local
+local function test_treesitter_query()
+	local bufnr = 8
+
+	local language_tree = vim.treesitter.get_parser(bufnr, "cpp")
+	local syntax_tree = language_tree:parse()
+	local root = syntax_tree[1]:root()
+
+	print(vim.inspect(vim.treesitter.query.list_directives()))
+	local query = vim.treesitter.query.parse(
+		"cpp",
+		[[
+			(
+				(comment) @_start
+					.
+				(expression_statement
+					(call_expression
+						function: (identifier) @_suite_name (#eq? @_suite_name "BOOST_FIXTURE_TEST_SUITE")
+						arguments: (argument_list
+							(identifier) @namespace.name))
+				) @_end
+				;;_*
+				;;(expression_statement
+				;;	(call_expression
+				;;		function: (identifier) @suite_name (#eq? @suite_name "BOOST_AUTO_TEST_SUITE_END"))
+				;;) @end
+			)
+			(#make-range! "namespace" @_start @_end)
+		]]
+	)
+
+	---@diagnostic disable-next-line: missing-parameter, unused-local
+	for _, capture, metadata in query:iter_captures(root, bufnr) do
+		print(vim.inspect(vim.treesitter.get_node_text(capture, bufnr)))
+	end
+end
+-- test_treesitter_query()
 
 return M

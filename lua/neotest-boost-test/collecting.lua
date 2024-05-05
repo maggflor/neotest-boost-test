@@ -7,7 +7,7 @@ local internals = {}
 ---@class TestContext
 ---@field test_id string
 ---@field file string
----@field line integer
+---@field line integer 0 based test body start line
 ---@field filter string
 ---@field log_path string
 ---@field report_path string
@@ -107,10 +107,13 @@ local function read_test_result(log_path, test_file, test_line)
 		if test_case._attr.skipped then
 			return false
 		end
-		if test_case._attr.file == test_file and test_case._attr.line == tostring(test_line) then
-			return true
+		if test_case._attr.file ~= test_file then
+			return false
 		end
-		return false
+		if test_case._attr.line ~= tostring(test_line) then
+			return false
+		end
+		return true
 	end
 	test_cases = vim.tbl_filter(find_test_case, test_cases)
 	if #test_cases > 1 then

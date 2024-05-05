@@ -98,8 +98,7 @@ local function find_test_executable(test_node, build_dir)
 	local executables = ctest_search_executables(test_dir)
 	for _, test_executable in pairs(executables) do
 		local digraph = boost_test_get_digraph(test_executable)
-		-- Convert from 0 based to 1 based
-		local test_start_line = test_node.range[1] + 1
+		local test_start_line = test_node.range[1]
 		local search_str = test_node.path .. "(" .. test_start_line .. ")"
 		if string.find(digraph, search_str, 0, true) then
 			return test_executable
@@ -114,8 +113,7 @@ end
 local function boost_test_get_filter(test_node, executable)
 	local digraph = boost_test_get_digraph(executable)
 
-	-- Convert from 0 based to 1 based
-	local test_start_line = test_node.range[1] + 1
+	local test_start_line = test_node.range[1]
 	local test_location_str = test_node.path .. "(" .. test_start_line .. ")"
 
 	local scope = {}
@@ -124,9 +122,9 @@ local function boost_test_get_filter(test_node, executable)
 		if string.find(line, test_location_str, 0, true) then
 			return table.concat(scope) .. test_node.name
 		end
+
 		if line == "{" then
 			local match = string.match(lines[i - 2], 'label="(.*)|')
-			-- vim.notify(vim.inspect(match))
 			if match then
 				table.insert(scope, match .. "/")
 			end
@@ -159,7 +157,6 @@ function M.build_spec(args)
 
 	---@type neotest.Node
 	local test_node = args.tree:to_list()[1]
-	-- vim.notify("Running test " .. vim.inspect(test_node))
 	if test_node.type ~= "test" then
 		-- TODO: Support test suites
 		return
@@ -190,7 +187,7 @@ function M.build_spec(args)
 		string.format("cd %q", executable_path),
 		"&&",
 		string.format("%q", executable),
-		"--run_test=" .. string.format("%q", test_filter),
+		"--run_test=" .. test_filter,
 		"--log_format=XML",
 		"--log_level=all",
 		"--log_sink=" .. string.format("%q", log_path),
@@ -210,7 +207,7 @@ function M.build_spec(args)
 		context = {
 			test_id = test_node.id,
 			file = test_node.path,
-			line = test_node.range[1] + 1,
+			line = test_node.range[1],
 			filter = test_filter,
 			log_path = log_path,
 			report_path = report_path,

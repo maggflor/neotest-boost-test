@@ -1,4 +1,5 @@
 local async = require("neotest.async")
+local lib = require("neotest.lib")
 local utils = require("neotest-boost-test.utils")
 
 local Job = require("plenary.job")
@@ -177,7 +178,15 @@ function M.build_spec(args)
 	end
 	local executable_path = utils.remove_file_name_from_path(executable)
 
-	-- TODO: Warn if executable is older than test file
+	local last_modified_test = vim.uv.fs_stat(executable).mtime.sec
+	local last_modified_source = vim.uv.fs_stat(test_node.path).mtime.sec
+	if last_modified_source > last_modified_test then
+		local path_elements = vim.split(executable, lib.files.sep, { plain = true })
+		local executable_name = path_elements[#path_elements]
+		vim.notify("Test source is newer than test executable.", "warn")
+		vim.notify("Try to build the target '" .. executable_name .. "' ...", "info")
+		-- TODO: Start with toggleterm, detach, etc.
+	end
 
 	local test_filter = boost_test_get_filter(test_node, executable)
 	local log_path = async.fn.tempname()

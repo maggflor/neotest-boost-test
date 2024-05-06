@@ -128,7 +128,11 @@ local function boost_test_get_filter(test_node, executable)
 			local match = string.match(lines[i - 2], 'label="(.*)|')
 			if match then
 				table.insert(scope, match .. "/")
+			else
+				table.insert(scope, "")
 			end
+		elseif line == "}" then
+			table.remove(scope, #scope)
 		end
 	end
 

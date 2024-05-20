@@ -57,4 +57,8 @@ function M.build_root_from_compile_commands()
 	return build_dir
 end
 
+M.tbl_flatten = vim.fn.has("nvim-0.10") == 1 and function(x)
+	return vim.iter(x):flatten(math.huge):totable()
+end or vim.tbl_flatten
+
 return M

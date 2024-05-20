@@ -195,7 +195,7 @@ function M.build_spec(args)
 	local test_filter = boost_test_get_filter(test_node, executable)
 	local log_path = async.fn.tempname()
 	local report_path = async.fn.tempname()
-	local command = vim.tbl_flatten({
+	local command = utils.tbl_flatten({
 		-- TODO: Make configurable whether to switch dir
 		string.format("cd %q", executable_path),
 		"&&",

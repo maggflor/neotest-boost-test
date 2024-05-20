@@ -8,6 +8,7 @@ local internals = {}
 ---@field test_id string
 ---@field file string
 ---@field line integer 0 based test body start line
+---@field end_line integer 0 based test body end line
 ---@field filter string
 ---@field log_path string
 ---@field report_path string
@@ -145,13 +146,18 @@ function M.results(spec, result, tree)
 	if errors._attr ~= nil then
 		errors = { errors }
 	end
+
 	---@type neotest.Error[]
 	local parsed_errors = {}
 	for _, error in pairs(errors) do
+		-- NOTE: Line has to be one less than actual line (0 based)
+		local line = tonumber(error._attr.line) - 1
+		if line > context.end_line then
+			line = context.end_line
+		end
 		table.insert(parsed_errors, {
 			message = error[1],
-			-- NOTE: Line has to be one less than actual line (0 based)
-			line = error._attr.line - 1,
+			line = line,
 		})
 	end
 

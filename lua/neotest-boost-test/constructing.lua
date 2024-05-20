@@ -221,6 +221,7 @@ function M.build_spec(args)
 			test_id = test_node.id,
 			file = test_node.path,
 			line = test_node.range[1],
+			end_line = test_node.range[3],
 			filter = test_filter,
 			log_path = log_path,
 			report_path = report_path,

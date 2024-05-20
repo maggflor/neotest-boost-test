@@ -149,6 +149,17 @@ function M.results(spec, result, tree)
 
 	---@type neotest.Error[]
 	local parsed_errors = {}
+
+	---@param message string
+	---@return string message but without the literal check
+	local trim_error = function(message)
+		local details = message:match("check .* has failed (%[.*%])")
+		if details then
+			return "check has failed " .. message:match("check .* has failed (%[.*%])")
+		else
+			return message
+		end
+	end
 	for _, error in pairs(errors) do
 		-- NOTE: Line has to be one less than actual line (0 based)
 		local line = tonumber(error._attr.line) - 1
@@ -156,7 +167,7 @@ function M.results(spec, result, tree)
 			line = context.end_line
 		end
 		table.insert(parsed_errors, {
-			message = error[1],
+			message = trim_error(tostring(error[1])),
 			line = line,
 		})
 	end

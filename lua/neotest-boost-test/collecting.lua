@@ -99,18 +99,18 @@ end
 local function read_test_result(log_path, test_file, test_line)
 	local success, data = pcall(lib.files.read, log_path)
 	if not success then
-		vim.notify("Failed to read file " .. log_path, "error")
+		vim.notify("Failed to read file " .. log_path, vim.log.levels.ERROR)
 		return
 	end
 	---@type TestOutput
 	local test_output = lib.xml.parse(data)
 	if not test_output then
-		vim.notify("Test results not in XML format " .. log_path, "error")
+		vim.notify("Test results not in XML format " .. log_path, vim.log.levels.ERROR)
 		return
 	end
 	local test_cases = internals.flatten_to_test_cases(test_output.TestLog)
 	if #test_cases == 0 then
-		vim.notify("No test case results found in test output " .. log_path, "error")
+		vim.notify("No test case results found in test output " .. log_path, vim.log.levels.ERROR)
 		return
 	end
 
@@ -143,7 +143,7 @@ function M.results(spec, strategyResult, tree)
 
 	local test_results = read_test_result(context.log_path, context.file, context.line)
 	if not test_results then
-		vim.notify("Failed to read test results from " .. context.log_path, "error")
+		vim.notify("Failed to read test results from " .. context.log_path, vim.log.levels.ERROR)
 		return {}
 	end
 

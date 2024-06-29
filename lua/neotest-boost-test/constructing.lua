@@ -136,7 +136,7 @@ local function boost_test_get_filter(test_node, executable)
 		end
 	end
 
-	vim.notify("Could not determine scope of test '" .. test_node.name .. "' in test file.", "error")
+	vim.notify("Could not determine scope of test '" .. test_node.name .. "' in test file.", vim.log.levels.ERROR)
 	return ""
 end
 
@@ -144,7 +144,7 @@ end
 ---@return nil | neotest.RunSpec | neotest.RunSpec[]
 function M.build_spec(args)
 	if args.strategy ~= "integrated" then
-		vim.notify("'" .. args.strategy .. "' not supported, yet.", "error")
+		vim.notify("'" .. args.strategy .. "' not supported, yet.", vim.log.levels.ERROR)
 		return
 	end
 	-- TODO: Support file test
@@ -176,7 +176,7 @@ function M.build_spec(args)
 				.. "The test may not be built or the build directory '"
 				.. build_dir
 				.. "' may not be correct.",
-			"error"
+			vim.log.levels.ERROR
 		)
 		return
 	end
@@ -187,8 +187,8 @@ function M.build_spec(args)
 	if last_modified_source > last_modified_test then
 		local path_elements = vim.split(executable, lib.files.sep, { plain = true })
 		local executable_name = path_elements[#path_elements]
-		vim.notify("Test source is newer than test executable.", "warn")
-		vim.notify("Try to build the target '" .. executable_name .. "' ...", "info")
+		vim.notify("Test source is newer than test executable.", vim.log.levels.WARN)
+		vim.notify("Try to build the target '" .. executable_name .. "' ...", vim.log.levels.INFO)
 		-- TODO: Start with toggleterm, detach, etc.
 	end
 

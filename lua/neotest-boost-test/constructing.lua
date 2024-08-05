@@ -42,23 +42,6 @@ end
 ---@param args neotest.RunArgs
 ---@return nil | neotest.RunSpec | neotest.RunSpec[]
 function M.build_spec(args)
-	if args.strategy ~= "integrated" then
-		vim.notify("'" .. args.strategy .. "' not supported, yet.", vim.log.levels.ERROR)
-		return
-	end
-	-- TODO: Support file test
-	-- if #args.tree:children() > 0 then
-	-- 	local results = {}
-	-- 	for i, child in ipairs(args.tree:children()) do
-	-- 		results[i] = M.build_spec({
-	-- 			tree = child,
-	-- 			strategy = args.strategy,
-	-- 			extra_args = args.extra_args,
-	-- 		})
-	-- 	end
-	-- 	return results
-	-- end
-
 	---@type neotest.Node
 	local test_node = args.tree:to_list()[1]
 	if test_node.type ~= "test" then
@@ -94,11 +77,7 @@ function M.build_spec(args)
 	local test_filter = boost_test_get_filter(test_node, executable)
 	local log_path = async.fn.tempname()
 	local report_path = async.fn.tempname()
-	local command = utils.tbl_flatten({
-		-- TODO: Make configurable whether to switch dir
-		string.format("cd %q", executable_path),
-		"&&",
-		string.format("%q", executable),
+	local arguments = {
 		"--run_test=" .. test_filter,
 		"--log_format=XML",
 		"--log_level=all",
@@ -108,6 +87,13 @@ function M.build_spec(args)
 		"--report_level=detailed",
 		"--report_sink=" .. string.format("%q", report_path),
 		args.extra_args,
+	}
+	local command = utils.tbl_flatten({
+		-- TODO: Make configurable whether to switch dir
+		string.format("cd %q", executable_path),
+		"&&",
+		string.format("%q", executable),
+		arguments,
 	})
 
 	return {
@@ -125,8 +111,7 @@ function M.build_spec(args)
 			log_path = log_path,
 			report_path = report_path,
 		},
-		-- No dap strategy for now
-		strategy = nil,
+		strategy = strategy:create_strategy(args.strategy, executable, executable_path, arguments),
 	}
 end
 

@@ -2,6 +2,13 @@ local parsing = require("neotest-boost-test.parsing")
 local constructing = require("neotest-boost-test.constructing")
 local collecting = require("neotest-boost-test.collecting")
 
+---@class neotest.Node
+---@field id string
+---@field name string
+---@field path string
+---@field range integer[4]
+---@field type string
+
 ---@type neotest.Adapter
 ---@class NeotestAdapter
 ---@field name string

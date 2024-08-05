@@ -2,6 +2,7 @@ local lib = require("neotest.lib")
 
 local Job = require("plenary.job")
 
+-- TODO: Consider to split up this generic "utils" file
 local M = {}
 
 ---@param line string a line of text that can be split into words

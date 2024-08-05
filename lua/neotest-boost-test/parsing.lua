@@ -1,5 +1,5 @@
 local lib = require("neotest.lib")
-local utils = require("neotest-boost-test.utils")
+local utils = require("neotest-boost-test.utils.utils")
 
 local M = {}
 

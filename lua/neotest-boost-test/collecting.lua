@@ -29,7 +29,9 @@ local internals = {}
 
 ---@class TestCaseResult
 ---@field _attr TestResultAttributes
----@field Error? TestError[] | TestError
+---@field Error? TestHint[] | TestHint
+---@field Exception? TestException
+---@field FatalError? TestHint
 ---@field Info? any
 
 ---@class TestResultAttributes
@@ -39,13 +41,18 @@ local internals = {}
 ---@field file? string
 ---@field line? string "integer" starting from "1"
 
----@class TestError
+---@class TestHint
 ---@field first_element string
----@field _attr TestErrorAttributes
+---@field _attr TestHintAttributes
 
----@class TestErrorAttributes
+---@class TestHintAttributes
 ---@field file string
 ---@field line string "integer" starting from "1"
+
+---@class TestException
+---@field first_element string
+---@field LastCheckpoint TestHint
+---@field _attr TestHintAttributes
 
 ---@param test_log TestLog | TestSuiteResult
 ---@return TestCaseResult[] test cases
@@ -140,11 +147,20 @@ function M.results(spec, result, tree)
 		return {}
 	end
 
-	local failed = test_result.Error ~= nil
+	local failed = test_result.Error ~= nil or test_result.FatalError ~= nil or test_result.Exception ~= nil
 
 	local errors = test_result.Error or {}
 	if errors._attr ~= nil then
 		errors = { errors }
+	end
+	if test_result.FatalError ~= nil then
+		table.insert(errors, test_result.FatalError)
+	end
+	local exception = test_result.Exception
+	if exception ~= nil then
+		exception._attr = exception.LastCheckpoint._attr
+		exception[1] = "last checkpoint before " .. exception[1]
+		table.insert(errors, exception)
 	end
 
 	---@type neotest.Error[]

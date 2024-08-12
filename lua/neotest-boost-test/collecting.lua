@@ -43,7 +43,11 @@ local internals = {}
 
 ---@class TestHint
 ---@field first_element string
+---@field Context? TestHintContext
 ---@field _attr TestHintAttributes
+
+---@class TestHintContext
+---@field Frame string
 
 ---@class TestHintAttributes
 ---@field file string
@@ -91,7 +95,7 @@ end
 ---@param log_path string
 ---@param test_file string
 ---@param test_line integer
----@return TestCaseResult | nil
+---@return TestCaseResult[] | nil
 local function read_test_result(log_path, test_file, test_line)
 	local success, data = pcall(lib.files.read, log_path)
 	if not success then
@@ -124,30 +128,36 @@ local function read_test_result(log_path, test_file, test_line)
 		return true
 	end
 	test_cases = vim.tbl_filter(find_test_case, test_cases)
-	if #test_cases > 1 then
-		vim.notify("No unique result found for test case.", "warn")
-	end
-	local test_case = vim.tbl_values(test_cases)[1]
-	return test_case
+	return test_cases
 end
 
 ---@async
 ---@param spec neotest.RunSpec
----@param result neotest.StrategyResult
+---@param strategyResult neotest.StrategyResult
 ---@param tree neotest.Tree
 --- NOTE: Key string is id from neotest.Node
 ---@return table<string, neotest.Result>
-function M.results(spec, result, tree)
+function M.results(spec, strategyResult, tree)
 	---@type TestContext
 	local context = spec.context
 
-	local test_result = read_test_result(context.log_path, context.file, context.line)
-	if not test_result then
+	local test_results = read_test_result(context.log_path, context.file, context.line)
+	if not test_results then
 		vim.notify("Failed to read test results from " .. context.log_path, "error")
 		return {}
 	end
 
-	local failed = test_result.Error ~= nil or test_result.FatalError ~= nil or test_result.Exception ~= nil
+	local test_result
+	local failed
+
+	-- Get first failed result if any
+	for _, result in pairs(test_results) do
+		test_result = result
+		failed = test_result.Error ~= nil or test_result.FatalError ~= nil or test_result.Exception ~= nil
+		if failed then
+			break
+		end
+	end
 
 	local errors = test_result.Error or {}
 	if errors._attr ~= nil then
@@ -188,6 +198,26 @@ function M.results(spec, result, tree)
 		})
 	end
 
+	---@type TestHintContext
+	local error_context = nil
+	if #errors > 0 then
+		error_context = errors[1].Context
+	end
+
+	-- Add info about which test case failed
+	if #test_results > 1 and failed and error_context then
+		local context_string = ""
+		local context_parts = vim.split(error_context.Frame, "; ", { plain = true })
+		for _, part in pairs(context_parts) do
+			context_string = context_string .. "\n" .. part
+		end
+
+		table.insert(parsed_errors, {
+			message = "only showing errors for one context" .. context_string,
+			line = context.line,
+		})
+	end
+
 	local success, report = pcall(lib.files.read, context.report_path)
 	if not success then
 		report = ""
@@ -199,7 +229,7 @@ function M.results(spec, result, tree)
 	results[context.test_id] = {
 		status = failed and ResultStatus.failed or ResultStatus.passed,
 		short = 'Ran test "' .. context.filter .. '":\n' .. report,
-		output = result.output,
+		output = strategyResult.output,
 		errors = parsed_errors,
 	}
 	return results

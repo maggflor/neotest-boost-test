@@ -89,6 +89,20 @@ function M.discover_positions(file_path)
 			body: (compound_statement) @test.definition
 		)
 
+		;; BOOST_DATA_TEST_CASE
+		(
+			(expression_statement
+				(call_expression
+					function: (identifier) @function_name (#eq? @function_name "BOOST_DATA_TEST_CASE")
+					arguments: (argument_list
+						(identifier) @test.name
+					)
+				)
+			)
+			.
+			(compound_statement) @test.definition
+		)
+
 		;; BOOST_DATA_TEST_CASE_F
 		(
 			(expression_statement
